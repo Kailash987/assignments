@@ -1,0 +1,17 @@
+app:
+  name: assignments
+  environment: development
+
+lru:
+  default_capacity: 3
+
+task_processor:
+  max_tasks: 10
+  enable_logging: true
+
+worker_pool:
+  workers: 3
+  task_buffer_size: 100
+
+logging:
+  level: info

@@ -1,0 +1,9 @@
+1.IN LRU MAINTAIN THE STATE THE DATA
+2.METHOD FUNCTIONS, CONVERT LRU FUNCTIONS REGARDING THE METHODS
+3.implement using channels for task processor
+4.create a simple for loop and print both I and j value in the range
+5.run n the lop on maps, lists,channels
+6.explore readme and .md file and add it to the repo
+7.get the documentation pointers form chatgpt , try to fill those ppinters for every program
+8.unit tests for each functions
+9.try to use config files

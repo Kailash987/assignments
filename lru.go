@@ -1,6 +1,12 @@
 package main
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+)
+
+// LRU CACHE STRUCTURES
 
 // Node represents a doubly linked list node
 type Node struct {
@@ -18,7 +24,22 @@ type LRUCache struct {
 	tail     *Node
 }
 
-// Constructor
+// PERSISTENCE STRUCTS
+
+// Struct used to store key-value data in file
+type NodeData struct {
+	Key   string
+	Value string
+}
+
+// Struct that represents the entire cache state
+type PersistedCache struct {
+	Capacity int
+	Items    []NodeData
+}
+
+// CONSTRUCTOR
+
 func NewLRUCache(capacity int) *LRUCache {
 	head := &Node{}
 	tail := &Node{}
@@ -34,7 +55,7 @@ func NewLRUCache(capacity int) *LRUCache {
 	}
 }
 
-// Get retrieves value and updates usage
+// CORE OPERATIONS
 func (lru *LRUCache) Get(key string) (string, bool) {
 	node, ok := lru.cache[key]
 	if !ok {
@@ -47,7 +68,6 @@ func (lru *LRUCache) Get(key string) (string, bool) {
 	return node.value, true
 }
 
-// Put inserts or updates value
 func (lru *LRUCache) Put(key string, value string) {
 	if node, ok := lru.cache[key]; ok {
 		node.value = value
@@ -68,8 +88,6 @@ func (lru *LRUCache) Put(key string, value string) {
 		lru.evictLRU()
 	}
 }
-
-// Remove node from list
 func (lru *LRUCache) remove(node *Node) {
 	prev := node.prev
 	next := node.next
@@ -77,7 +95,6 @@ func (lru *LRUCache) remove(node *Node) {
 	next.prev = prev
 }
 
-// Insert node right after head
 func (lru *LRUCache) insertAtFront(node *Node) {
 	node.next = lru.head.next
 	node.prev = lru.head
@@ -85,14 +102,13 @@ func (lru *LRUCache) insertAtFront(node *Node) {
 	lru.head.next = node
 }
 
-// Evict least recently used node
 func (lru *LRUCache) evictLRU() {
 	lruNode := lru.tail.prev
 	lru.remove(lruNode)
 	delete(lru.cache, lruNode.key)
 }
 
-// Display cache state (optional but useful)
+// DISPLAY
 func (lru *LRUCache) Display() {
 	fmt.Print("Cache (MRU → LRU): ")
 	curr := lru.head.next
@@ -103,12 +119,72 @@ func (lru *LRUCache) Display() {
 	fmt.Println()
 }
 
-func runLRUCache() {
-	var capacity int
-	fmt.Print("Enter cache capacity: ")
-	fmt.Scan(&capacity)
+// Saves cache state to a file before exiting
+func (lru *LRUCache) SaveToFile(filename string) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
 
-	cache := NewLRUCache(capacity)
+	var data PersistedCache
+	data.Capacity = lru.capacity
+
+	// traverse cache from MRU → LRU and store items
+	curr := lru.head.next
+	for curr != lru.tail {
+		data.Items = append(data.Items, NodeData{
+			Key:   curr.key,
+			Value: curr.value,
+		})
+		curr = curr.next
+	}
+
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(data)
+}
+
+// Loads cache state from file on program start
+func LoadFromFile(filename string) (*LRUCache, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var data PersistedCache
+	decoder := json.NewDecoder(file)
+	if err := decoder.Decode(&data); err != nil {
+		return nil, err
+	}
+
+	cache := NewLRUCache(data.Capacity)
+
+	for i := len(data.Items) - 1; i >= 0; i-- {
+		item := data.Items[i]
+		cache.Put(item.Key, item.Value)
+	}
+
+	return cache, nil
+}
+func runLRUCache() {
+	const filename = "cache.json"
+
+	var cache *LRUCache
+	var err error
+
+	cache, err = LoadFromFile(filename)
+	if err != nil {
+		var capacity int
+		fmt.Print("No saved cache found. Enter cache capacity: ")
+		fmt.Scan(&capacity)
+		cache = NewLRUCache(capacity)
+		fmt.Println("Started fresh cache")
+	} else {
+		fmt.Println("Loaded cache from disk")
+		cache.Display()
+	}
 
 	fmt.Println("\nCommands:")
 	fmt.Println("PUT key value")
@@ -139,12 +215,12 @@ func runLRUCache() {
 			cache.Display()
 
 		case "EXIT":
-			fmt.Println("Exiting...")
+			cache.SaveToFile(filename)
+			fmt.Println("Cache saved. Exiting...")
 			return
 
 		default:
 			fmt.Println("Invalid command")
 		}
 	}
-
 }

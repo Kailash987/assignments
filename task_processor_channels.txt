@@ -1,0 +1,89 @@
+package main
+
+import (
+	"fmt"
+	"sync"
+	"time"
+)
+
+// Task Interface
+
+type Task interface {
+	Execute()
+}
+
+// Email Task
+
+type EmailTask struct {
+	Recipient string
+	Message   string
+}
+
+func (e EmailTask) Execute() {
+	fmt.Printf("Sending email to %s: %s\n", e.Recipient, e.Message)
+	time.Sleep(2 * time.Second)
+	fmt.Printf("Email sent to %s\n", e.Recipient)
+}
+
+// Data Processing Task
+
+type DataProcessingTask struct {
+	Data string
+}
+
+func (d DataProcessingTask) Execute() {
+	fmt.Printf("Processing data: %s\n", d.Data)
+	time.Sleep(3 * time.Second)
+	fmt.Printf("Data processed: %s\n", d.Data)
+}
+
+// Worker
+
+func worker(id int, tasks <-chan Task, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	for task := range tasks {
+		fmt.Printf("[Worker %d] Started task\n", id)
+		task.Execute()
+		fmt.Printf("[Worker %d] Finished task\n", id)
+	}
+}
+
+// Task Processor
+
+func runTaskProcessor() {
+	taskChannel := make(chan Task)
+
+	var wg sync.WaitGroup
+	workerCount := 3
+
+	// Start workers
+	for i := 1; i <= workerCount; i++ {
+		wg.Add(1)
+		go worker(i, taskChannel, &wg)
+	}
+
+	// Predefined tasks (NO user input)
+	tasks := []Task{
+		EmailTask{Recipient: "alice@example.com", Message: "Hello Alice"},
+		DataProcessingTask{Data: "File_A.csv"},
+		EmailTask{Recipient: "bob@example.com", Message: "Hi Bob"},
+		DataProcessingTask{Data: "Report_2025.json"},
+	}
+
+	// Send tasks to channel
+	for _, task := range tasks {
+		taskChannel <- task
+	}
+
+	// Close channel to signal no more tasks
+	close(taskChannel)
+
+	// Wait for all workers to finish
+	wg.Wait()
+	fmt.Println("All tasks completed.")
+}
+
+func main() {
+	runTaskProcessor()
+}
